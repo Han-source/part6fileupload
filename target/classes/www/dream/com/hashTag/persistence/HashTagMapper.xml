@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+   namespace="www.dream.com.hashTag.persistence.HashTagMapper">
+   <resultMap type="www.dream.com.hashTag.model.HashtagVO" id="rmHashtagVO">
+      <!-- id는 1개 -->
+      <id property="id" column="id"></id>
+      <result property="hashtag" column="hashTag"></result>
+      <result property="description" column="description"></result>
+   </resultMap>
+   
+   
+   <!--  	public Set<HashtagVO> findExisting(@Param("setHashTag") Set<String> setHashTag);-->
+    <select id="findExisting" resultMap="rmHashtagVO"> 
+         select * 
+         from s_hashtag
+        where hashtag in 
+            <foreach collection="setHashTag" item="word" open="(" separator="," close=")">
+               #{word}
+            </foreach>   
+    </select>
+    
+    <!-- public int[] getIds(int cnt); -->
+    <select id="getIds" resultType="string">
+       select getMultiId(#{cnt}) from dual 
+    </select>
+    
+   <!--  	public int createHashTag(Set<HashtagVO> newHashtag); -->
+     <insert id="createHashTag">
+          insert all 
+        <foreach collection="setNewHashtag" item="ht">
+           into s_hashtag(id, hashtag) values(#{ht.id}, #{ht.hashtag})
+        </foreach>
+        select * from dual
+     </insert>
+   
+   <!-- public int insertMapBetweenPost(@Param("setExisting") Set<HashtagVO> setExisting, @Param("postId") String id); -->
+     <insert id="insertMapBetweenPost">
+        insert all 
+        <foreach collection="setExisting" item="hashtag">
+           into sm_ht2post(hashtag_id, post_id, occur_cnt) values(#{hashtag.id},#{postId},#{hashtag.occurCnt})
+        </foreach>
+        select * from dual
+     </insert>
+</mapper>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="www.dream.com.party.persistence.PartyMapper">
+	<!-- resultMap : DB Table 정의 내역과 객체 정의 내역에 있어 mismatch(부조화)가 있을 시 이를 연동, 
+		짝지어주는 정보를 정의함. -->
+	<resultMap type="www.dream.com.party.model.Party"
+		id="partyMap"
+		extends="www.dream.com.common.persistence.CommonMngVOMapper.commonMngVOMap">
+		<id property="userId" column="user_id"></id>
+		<result property="userPwd" column="user_pwd"></result>
+		<result property="name" column="name"></result>
+		<result property="birthDate" column="birth_dt"></result>
+		<result property="male" column="sex"></result>
+		<result property="enabled" column="enabled"></result>
+
+		<!-- collection : Master-Detatil(1:N) 구조에서 Join Query를 통하여 여러 테이블에 들어 있는 
+			정보를 한번에 받아서 java List 속성에 부품 객체를 만들어 조회하는 방법 columnPrefix : 각 Table에 들어 있는 
+			컬럼 이름이 중복 될때 Column Alias를 SQL에서 달고 이를 객체 구성 시 참조 하도록 지원함 -->
+		<collection property="listContactPoint"
+			resultMap="contactPointMap" columnPrefix="cp_">
+		</collection>
+
+		<!-- discriminator : 판별자. 상속 관련 활용 -->
+		<discriminator javaType="String" column="descrim">
+			<case value="Admin" resultMap="adminResultMap" />
+			<case value="Manager" resultMap="managerResultMap" />
+			<case value="User" resultMap="userResultMap" />
+		</discriminator>
+	</resultMap>
+
+	<resultMap id="adminResultMap"
+		type="www.dream.com.party.model.Admin" extends="partyMap">
+	</resultMap>
+	<resultMap id="managerResultMap"
+		type="www.dream.com.party.model.Manager" extends="partyMap">
+	</resultMap>
+	<resultMap id="userResultMap"
+		type="www.dream.com.party.model.User" extends="partyMap">
+	</resultMap>
+
+	<resultMap type="www.dream.com.party.model.ContactPoint"
+		id="contactPointMap"
+		extends="www.dream.com.common.persistence.CommonMngVOMapper.commonMngVOMap">
+		<id property="contactPointType" column="contact_point_type"></id>
+		<result property="info" column="info"></result>
+	</resultMap>
+
+
+	<!-- public List<Party> getList(); -->
+	<select id="getList" resultMap="partyMap">
+   <![CDATA[
+   select p.*, 
+            cp.user_id cp_user_id, cp.contact_point_type cp_contact_point_type, 
+            cp.info cp_info, cp.reg_dt cp_reg_dt, cp.upt_dt cp_upt_dt 
+     from s_party p left outer join s_contact_point cp on p.user_id = cp.user_id 
+   ]]>
+	</select>
+
+	
+
+
+
+</mapper>

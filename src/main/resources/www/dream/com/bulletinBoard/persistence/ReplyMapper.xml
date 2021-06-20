@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- resultMap : DB Table 정의 내역과 객체 정의 내역에 있어 mismatch(부조화)가 있을 시 이를 연동, 짝 지어주는 정보를 정의함 -->
+<mapper
+   namespace="www.dream.com.bulletinBoard.persistence.ReplyMapper">
+   <!-- Reply -->
+   <resultMap type="www.dream.com.bulletinBoard.model.ReplyVO"
+      id="rmReply"
+      extends="www.dream.com.common.persistence.CommonMngVOMapper.commonMngVOMap">
+      <!-- property는 자바의 객체명, column은 DB의 컬럼명 -->
+      <id property="id" column="id"></id>
+      <result property="content" column="content"></result>
+      <result property="replyCnt" column="reply_cnt"></result>
+      <association property="writer" columnPrefix="w_"
+         resultMap="www.dream.com.party.persistence.PartyMapper.partyMap">
+      </association>
+      
+      <!-- discriminator : 판별자. 상속 광련 활용, bottom 전략  -->
+      <discriminator javaType="String" column="descrim">
+         <case value="reply" resultMap="rmReply" />
+         <case value="post" resultMap="rmPost" />
+      </discriminator>
+   </resultMap>
+   
+   <!-- Post : Reply물려받음 -->
+   <resultMap type="www.dream.com.bulletinBoard.model.PostVO"
+      id="rmPost" extends="rmReply">
+      <result property="title" column="title"></result>
+      <result property="readCnt" column="read_cnt"></result>    
+      <result property="likeCnt" column="like_cnt"></result>
+      <result property="dislikeCnt" column="dislike_cnt"></result>
+   </resultMap>
+
+   <!-- Reply association -->
+   <!-- <resultMap type="www.dream.com.bulletinBoard.model.ReplyVO"
+      id="rmReplyWithWriter" extends="rmReply">
+      
+   </resultMap> -->
+   
+   <!-- Post association -->
+     
+   <!-- 게시글 처리 함수 정의 영역-->
+   <sql id="searchCommon">
+   s_hashtag h, sm_ht2post m, s_reply p
+     where h.id in (
+            SELECT id <!-- 단어 계층 구조를 활용한 검색 범위 확장 -->
+             FROM s_hashtag
+             start with hashtag in 
+             <foreach collection="cri.searchingHashtags" item="aWord" open="(" separator="," close=")">
+               #{aWord}
+          </foreach>      
+          CONNECT BY PRIOR id = super_id)
+      and h.id = m.hashtag_id
+         and m.post_id = p.id
+         and board_id = #{boardId}
+   </sql>
+
+   <!-- {PostVO.DESCRIM4POST} 'post' -->
+   <!-- public long getTotalCount(@Param("boardId") int boardId, @Param("descrim") String descrim); -->
+   <select id="getTotalCount" resultType="_long">
+   <![CDATA[
+        select count(id)
+           from s_reply
+           where board_id = #{boardId}
+              and descrim = #{descrim}
+   ]]>
+   </select>
+   
+   <!-- public long getSearchTotalCount(@Param("boardId") int boardId, @Param("cri") Criteria cri); -->
+   <select id="getSearchTotalCount" resultType="_long">
+   select count(distinct p.id)
+     from <include refid="searchCommon"></include>
+   </select>
+   
+   <!-- public List<PostVO> getList(@Param("boardId") int boardId, @Param("cri") 
+      Criteria cri); -->
+   <select id="getList" resultMap="rmReply">
+   <![CDATA[
+   select p.*, w.name w_name, w.descrim w_descrim    
+     from (
+           select p.*, pc.reply_cnt
+           from
+             (select p.id, count(r.id) reply_cnt     
+                from (
+                    SELECT *
+                     FROM s_reply
+                   where board_id = #{boardId}
+                   order by id desc
+                    OFFSET (#{cri.pageNumber} - 1) * #{cri.amount} ROWS FETCH FIRST #{cri.amount} ROWS ONLY
+                ) p left outer join s_reply r
+               on r.id like p.id || '%'
+                  and length(r.id) > length(p.id)
+          group by p.id) pc, s_reply p 
+       where pc.id = p.id
+        ) p, s_party w
+    where p.writer_id = w.user_id
+    order by p.id desc
+   ]]>
+   </select>
+
+   <!-- public List<PostVO> getListByHashTag(@Param("boardId") int boardId, 
+      @Param("cri") Criteria cri); -->
+   <select id="getListByHashTag" resultMap="rmReply">
+    select p.*, w.name w_name, w.descrim w_descrim <!-- 게시글과 작성자 병합 -->
+     from (
+           select p.*, pc.reply_cnt <!-- 게시글의 기타 정보 조회 -->
+           from
+             (select p.id, count(r.id) reply_cnt <!-- 찾은 게시글에 달린 모든 댓글 개수 -->
+                from (
+                  select p.id   <!-- 단어에서 찾은 게시글 -->
+                    FROM <include refid="searchCommon"></include>
+                   order by id desc
+                   OFFSET (#{cri.pageNumber} - 1) * #{cri.amount} ROWS FETCH FIRST #{cri.amount} ROWS ONLY
+                ) p left outer join s_reply r
+               on r.id like p.id || '%'
+               and length(r.id) > length(p.id)
+          group by p.id) pc, s_reply p 
+       where pc.id = p.id
+        ) p, s_party w
+    where p.writer_id = w.user_id
+    order by p.id desc
+   </select>
+
+
+
+   <!-- public ReplyVO findReplyById(String id); -->
+   <!-- 게시글 상세 및 댓글 상세가 통합 서비스가 되고 있습니다. -->
+   <select id="findReplyById" resultMap="rmReply">
+   <![CDATA[
+   select p.*, w.name w_name, w.descrim w_descrim
+     from s_reply p, s_party w
+    where p.id = #{id}
+      and p.writer_id = w.user_id
+   ]]>
+   </select>
+
+   <!-- public int insert(@Param("board") BoardVO board, @Param("post") PostVO 
+      post); -->
+   <insert id="insert">
+      <selectKey keyProperty="post.id" order="BEFORE"
+         resultType="string">
+         select get_id(seq_reply_id.nextval) from dual
+      </selectKey>
+      insert into s_reply(id, board_id, writer_id, title, content, descrim)
+      values(#{post.id}, #{board.id}, 
+      #{post.writer.userId}, #{post.title}, #{post.content}, #{post.DESCRIM4POST})
+   </insert>
+
+   <!-- public int updatePost(PostVO post); -->
+   <update id="updatePost">
+      update s_reply
+          set title = #{title},
+            content = #{content},
+             upt_dt = sysdate
+       where id=#{id}
+   </update>
+   
+   <!--
+   public int deleteReplyById(String id); 
+   특정 게시글에 달린 모든 댓글을 한번에 지웁니다. start with connected by Query(hierarchy Query) 보다 성능이 높습니다.
+   -->
+   <delete id="deleteReplyById">
+      delete from s_reply where id like #{id} || '%'
+   </delete>
+   
+   <!--############################## 댓글 처리 함수 정의 영역 ######################### -->
+ 
+   <sql id="replyCommon">
+        from s_reply
+       where id like #{originalId} || '%'
+        and length(id) = #{idLength}
+   </sql>
+   <!--    public int getAllReplyCount(@Param("replyId") String replyId,@Param("idLength") int idLength); -->
+   <select id="getAllReplyCount" resultType="_int">
+        select count(*)
+       from s_reply
+       where id like #{replyId} || '%'
+        and length(id) >= #{idLength}
+   </select>
+   
+   <!--    public int getReplyCount(@Param("originalId") String originalId, 
+         @Param("idLength") int idLength); -->
+    <select id="getReplyCount" resultType="_int">
+        select count(*)
+       <include refid="replyCommon"></include>
+   </select>
+
+   <!--public List<ReplyVO> getReplyListWithPaging(@Param("originalId") String originalId, 
+         @Param("idLength") int idLength,   @Param("cri") Criteria cri); -->
+ 
+   
+    <select id="getReplyListWithPaging" resultMap="rmReply">
+   select p.*, w.name w_name, w.descrim w_descrim    
+     from (   
+     select r.*, rc.reply_cnt       
+      from (select r.id, count(*) -1 reply_cnt
+         from s_reply r left outer join s_reply rr
+            on rr.id like r.id || '%'
+           where r.id in (
+                      select id
+                 <include refid="replyCommon"></include>
+                )
+       group by r.id) rc, s_reply r 
+    where rc.id = r.id
+    order by r.id desc
+    OFFSET (#{cri.pageNumber} - 1) * #{cri.amount} ROWS FETCH FIRST #{cri.amount} ROWS ONLY        
+          ) p, s_party w
+    where p.writer_id = w.user_id
+
+   </select>
+   <!-- public List<ReplyVO> getReplyListOfReply(@Param("originalId") String originalId, @Param("idLength") int idLength); -->
+    <select id="getReplyListOfReply" resultMap="rmReply">
+    select p.*, w.name w_name, w.descrim w_descrim    
+     from (   
+          select *
+               from s_reply
+          where id like #{originalId} || '%'
+           and length(id) >= #{idLength}
+          order by id
+          ) p, s_party w
+    where p.writer_id = w.user_id
+   </select>
+   
+   <!-- public int insertReply(@Param("originalId")String originalId, @Param("reply") ReplyVO reply); -->
+   <insert id="insertReply">
+         <selectKey keyProperty="reply.id" order="BEFORE"
+            resultType="string">
+            select #{originalId} || get_id(seq_reply_id.nextval) from dual
+         </selectKey>
+         insert into s_reply(id, writer_id, content, descrim)
+         values(#{reply.id}, #{reply.writer.userId}, #{reply.content}, #{reply.DESCRIM4REPLY})
+      </insert>
+
+      <!-- public int updateReply(ReplyVO reply); -->
+   <update id="updateReply">
+      update s_reply
+           set content = #{content},
+            upt_dt = sysdate
+            where id = #{id}
+   </update>
+   
+
+   
+</mapper>

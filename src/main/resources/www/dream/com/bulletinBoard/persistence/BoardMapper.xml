@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+   namespace="www.dream.com.bulletinBoard.persistence.BoardMapper">
+   <resultMap type="www.dream.com.bulletinBoard.model.BoardVO"
+      id="boardMapper"
+      extends="www.dream.com.common.persistence.CommonMngVOMapper.commonMngVOMap">
+      <!-- id는 1개 -->
+      <id property="id" column="id"></id>
+      <result property="name" column="name"></result>
+      <result property="description" column="description"></result>
+   </resultMap>
+
+   <!-- public List<BoardVO> getList(); -->
+   <select id="getList" resultMap="boardMapper">
+   <![CDATA[
+   select * 
+        from s_board
+   ]]>
+   </select>
+   <!-- public BoardVO getBoard(int id); -->
+   <select id="getBoard" resultMap="boardMapper">
+   <![CDATA[
+   select * 
+     from s_board
+    where id = #{id}
+   ]]>
+   </select>
+</mapper>

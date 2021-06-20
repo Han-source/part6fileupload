@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="www.dream.com.common.persistence.CommonMngVOMapper">
+   <!-- resultMap : DB Table 정의 내역과 객체 정의 내역에 있어 mismatch(부조화)가 있을 시
+   이를 연동, 짝지어주는 정보를 정의함. -->
+   <resultMap type ="www.dream.com.common.model.CommonMngVO" id="commonMngVOMap">
+      <result property="registrationDate" column="reg_dt"></result>
+      <result property="updateDate" column="upt_dt"></result>
+   </resultMap>
+
+</mapper>
