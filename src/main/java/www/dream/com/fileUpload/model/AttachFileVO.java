@@ -31,7 +31,7 @@ public class AttachFileVO {
 	//UUID
 	@Expose
 	private String uuid;
-	//MultimediaType	
+	//MultimediaType 파일타입	
 	@Expose
 	private MultimediaType multimediaType;
 	
@@ -44,27 +44,32 @@ public class AttachFileVO {
 		return pureSaveFileName;
 	}
 	
-	public String getOriginalFileCallPath() {
-		UriComponentsBuilder builder = UriComponentsBuilder.fromPath("");
-		builder.queryParam("fileName", savedFolderPath + File.separator + pureSaveFileName);
-		return builder.toUriString();
-	}
 	
-	public String getFileCallPath() {
-		UriComponentsBuilder builder = UriComponentsBuilder.fromPath("");
-		builder.queryParam("fileName", savedFolderPath + File.separator + pureThumbnailFileName);
-		return builder.toUriString();
-	}
+	@Expose
+	private String fileCallPath;
+	@Expose
+	private String originalFileCallPath;
+	
 	
 	public String getJson() {
+		buildAuxInfo();
 		Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
-		String ret = new Gson().toJson(this); 
+		String ret = "";
 		try {
-			ret = URLEncoder.encode(ret, "UTF-8");
-			System.out.println(ret);
-		} catch (Exception e) {
+			ret = URLEncoder.encode(gson.toJson(this), "UTF-8");
+		} catch (UnsupportedEncodingException e) { 
 			e.printStackTrace();
 		}
-		return ret;
+
+		return ret; 
+		
 	}
+	// 클라이언트에서 필요한 부가적인, 보조적 정보 만들기
+		private void buildAuxInfo() {
+			fileCallPath = savedFolderPath + File.separator + pureThumbnailFileName;
+			
+			originalFileCallPath = savedFolderPath + File.separator + pureSaveFileName;
+			
+
+		}
 }

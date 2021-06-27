@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -52,10 +53,10 @@ public class UploadController {
 	public void uploadByAjax() {
 		
 	}
-	@PostMapping(value = "upload", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@PostMapping(value = "upload", produces=MediaType.APPLICATION_JSON_UTF8_VALUE)
 	@ResponseBody
-	public ResponseEntity<List<AttachFileVO>> uploadFilesByAjax(@RequestParam("uploadFile") MultipartFile[] uploadFiles) {
-		List<AttachFileVO> listAttachFileVO = new ArrayList<AttachFileVO>();
+	public ResponseEntity<List<String>> uploadFilesByAjax(@RequestParam("uploadFile") MultipartFile[] uploadFiles) {
+		List<AttachFileVO> listAttachFileVO = new ArrayList<>();
 		File uploadPath = new File(UPLOAD_FOLDER, getFolderName());
 		if (! uploadPath.exists()) {
 			//필요한 폴더 구조가 없다면 그 전체를 만들어 준다.
@@ -85,10 +86,12 @@ public class UploadController {
 			} catch (IllegalStateException | IOException e) {
 				e.printStackTrace();
 			}
+			//buildAuxInfo : 부가정보 생성하는 함수
 			listAttachFileVO.add(attachFileVO);
 		}
+		List<String> ret = listAttachFileVO.stream().map(vo -> vo.getJson()).collect(Collectors.toList());
 		
-		return new ResponseEntity<>(listAttachFileVO, HttpStatus.OK);
+		return new ResponseEntity<>(ret, HttpStatus.OK);
 	}
 	
 	@GetMapping("display")

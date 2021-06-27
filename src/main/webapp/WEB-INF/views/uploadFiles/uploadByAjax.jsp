@@ -37,25 +37,9 @@
 	</div>
 </body>
 <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+<script type="text/javascript" src="\resources\js\util\utf8.js"> </script>
 <script type="text/javascript">
-function showImage(fileCallPath) {
-	$(".bigWrapper").css("display", "flex").show();
-	$(".bigNested").html(
-			"<img src='/uploadFiles/display?" + fileCallPath + "'>"
-			).animate({width:'100%', height:'100%'}, 1000);
-}
 
-function showVideo(fileCallPath) {
-	$(".bigWrapper").css("display", "flex").show();
-	$(".bigNested").html("<video src='/uploadFiles/display?" + fileCallPath + "' autoplay>")
-	.animate({width:'100%', height:'100%'}, 1000);
-}
-
-function showAudio(fileCallPath) {
-	$(".bigWrapper").css("display", "flex").show();
-	$(".bigNested").html("<audio src='/uploadFiles/display?" + fileCallPath + "' autoplay>")
-	.animate({width:'100%', height:'100%'}, 1000);
-}
 
 
 $(document).ready(function(){
@@ -83,43 +67,7 @@ $(document).ready(function(){
 			data : formData,
 			type : 'post',
 			success : function (result){
-				var liTags = "";
-				$(result).each(function(i, attachVO) {
-					if(attachVO.multimediaType === "others"){
-						liTags += "<li><a href='/uploadFiles/download" 
-						+ attachVO.originalFileCallPath 
-						+ "'><img src='/resources/img/attachFileIcon.png'>" 
-						+ attachVO.pureFileName + "</a>"
-						+ "<span data-attach_info=" + attachVO.json + ">X<span/>"
-						+ "</li>";
-					} else {
-						var originalFileCallPath = encodeURIComponent(attachVO.originalFileCallPath.substring(1));
-						originalFileCallPath = originalFileCallPath.replace(new RegExp(/\\/g), "//");
-					
-						if (attachVO.multimediaType === "audio") {
-							liTags += "<li><a href=\"javascript:showAudio(\'" 
-							+ originalFileCallPath + "\')\"><img src='/resources/img/audioThumbnail.png'>" 
-							+ attachVO.pureFileName + "</a>"
-							+ "<span data-attach_info=\"" + attachVO.json + "\">X<span/>"
-							+ "</li>"; 		
-						}else if (attachVO.multimediaType === "image" ) {
-							liTags += "<li><a href=\"javascript:showImage(\'" 
-							+ originalFileCallPath + "\')\"><img src='display" 
-							+ attachVO.fileCallPath + "'>" + attachVO.pureFileName + "</a>"
-							+ "<span data-attach_info=\"" + attachVO.json + "\">X<span/>"
-							+ "</li>"; 		
-						}else if (attachVO.multimediaType === "video") {
-							liTags += "<li><a href=\"javascript:showVideo(\'" 
-							+ originalFileCallPath + "\')\"><img src='display" 
-							+ attachVO.fileCallPath + "'>" + attachVO.pureFileName + "</a>"
-							+ "<span data-attach_info=\"" + attachVO.json + "\">X<span/>"
-							+ "</li>";
-					}
-				}
-			});
-				//append사용 이유. 업로드 또 할시 이름을 바꿔야함
-				resultUl.append(liTags);
-				//업로드 이후에 청소하기
+				showUploadedFile(result);				
 				$("#uploadDiv").html(initClearStatus.html());
 			}
 			
@@ -134,22 +82,7 @@ $(document).ready(function(){
 		}, 1000);
 	});
 	
-	//첨부 취소하기
-	$("#uploadResult").on("click", "span", function () {
-		var attach_info = $(this).data("attach_info");
-		$.ajax({
-			url : '/uploadFiles/deleteFile',
-			//ajax호출을 json형식으로 할것임
-			data : attach_info,
-			//data를 주니 post형식으로 사용
-			type : 'post',
-			//dataType : returnType
-			dataType : 'text',
-			success : function (result){
-				alert(result);
-			}
-		});	
-	});
+
 	
 	
 	//업로드 파일에 대한 제약 사항을 미리 검사해 줍니다.
@@ -164,7 +97,74 @@ $(document).ready(function(){
 		}
 		return true;
 	}
-});
+	function showUploadedFile(result){
+		var liTags = "";
+		$(result).each(function(i, attachVOInJson) {
+			//객체로 바꿀것이다.
+			var attachVO = JSON.parse(decodeURL(attachVOInJson));
+			if(attachVO.multimediaType === "others"){
+				liTags += "<li data-attach_info=" + attachVOInJson + "><a href='/uploadFiles/download?fileName=" 
+				+ encodeURIComponent(attachVO.originalFileCallPath) + "'><img src='/resources/img/attachFileIcon.png'>" 
+				+ attachVO.pureFileName + "</a> <span>X<span/></li>";
+			} else {			
+				if (attachVO.multimediaType === "audio") {
+					liTags += "<li data-attach_info=" + attachVOInJson + ">"
+							+"<a>"
+							+"<img src='/resources/img/audioThumbnail.png'>" 
+							+ attachVO.pureFileName + "</a>"
+							+ "<span>X</span>"
+							+ "</li>"; 		
+				}else if (attachVO.multimediaType === "image" || attachVO.multimediaType === "video" ) {
+					liTags += "<li data-attach_info=" + attachVOInJson + ">"
+							+ "<a>"
+							+ "<img src='/uploadFiles/display?fileName=" 
+							+ encodeURIComponent(attachVO.fileCallPath) + "'>" + attachVO.pureFileName + "</a>"
+							+ "<span>X</span>"
+							+ "</li>"; 		
+					}
+			}
+		});		
+	 resultUl.append(liTags);
+	}
+	
+	$("#uploadResult").on("click", "a", function () {
+		var attachVO = $(this).closest("li").data("attach_info");
+		attachVO = JSON.parse(decodeURL(attachVO));
+		
+		$(".bigWrapper").css("display", "flex").show();
+		if(attachVO.multimediaType === "audio"){
+			$(".bigNested").html("<audio src='/uploadFiles/display?fileName=" + encodeURI(attachVO.originalFileCallPath) + "' autoplay>")
+				.animate({width:'100%', height:'100%'}, 1000);
+		}else if (attachVO.multimediaType === "image" ) {			
+			$(".bigNested").html("<img src='/uploadFiles/display?fileName=" + encodeURI(attachVO.originalFileCallPath) + "'>")
+					.animate({width:'100%', height:'100%'}, 1000);
+		}else if (attachVO.multimediaType === "video") {
+			$(".bigNested").html("<video src='/uploadFiles/display?fileName=" + encodeURI(attachVO.originalFileCallPath) + "' autoplay>")
+			.animate({width:'100%', height:'100%'}, 1000);
+		}
+
+	});
+	
+	//첨부 취소하기
+	$("#uploadResult").on("click", "span", function () {
+		var attachVO = $(this).closest("li").data("attach_info");
+		attachVO = JSON.parse(decodeURL(attachVO));
+		$.ajax({
+			url : '/uploadFiles/deleteFile',
+			//ajax호출을 json형식으로 할것임
+			data :attachVO,
+			//data를 주니 post형식으로 사용
+			type : 'post',
+			dataType : 'text',
+			success : function (result){
+				alert(result);
+			}
+		});	
+	});
+	
+});		
+
+
 
 </script>
 </html>
